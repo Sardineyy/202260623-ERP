@@ -23,6 +23,12 @@ const CHART_COLORS = [
   '#22c55e', '#14b8a6',
 ]
 
+const BRAND_CHART_COLORS = [
+  '#7c3aed', '#2563eb', '#0891b2', '#059669',
+  '#d97706', '#dc2626', '#db2777', '#4f46e5',
+  '#0d9488', '#ca8a04',
+]
+
 function formatAxisCurrency(value: number): string {
   if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}B`
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(0)}M`
@@ -59,16 +65,39 @@ interface DashboardChartsProps {
   topRegions: ChartItem[]
 }
 
-function HorizontalBarChart({ data, color = '#3b82f6' }: { data: ChartItem[]; color?: string }) {
-  const sorted = [...data].sort((a, b) => b.value - a.value).slice(0, 8)
+function HorizontalBarChart({
+  data,
+  color = '#3b82f6',
+  multiColor = false,
+  colors = CHART_COLORS,
+  yAxisWidth = 72,
+  tooltipLabel = '',
+}: {
+  data: ChartItem[]
+  color?: string
+  multiColor?: boolean
+  colors?: string[]
+  yAxisWidth?: number
+  tooltipLabel?: string
+}) {
+  const sorted = [...data].sort((a, b) => b.value - a.value).slice(0, 10)
   return (
-    <ResponsiveContainer width="100%" height={260}>
+    <ResponsiveContainer width="100%" height={280}>
       <BarChart data={sorted} layout="vertical" margin={{ left: 8, right: 16, top: 4, bottom: 4 }}>
         <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
         <XAxis type="number" tickFormatter={formatAxisCurrency} tick={{ fontSize: 11 }} />
-        <YAxis type="category" dataKey="name" width={72} tick={{ fontSize: 11 }} />
-        <Tooltip formatter={(v: number) => formatTooltipCurrency(v)} />
-        <Bar dataKey="value" fill={color} radius={[0, 4, 4, 0]} />
+        <YAxis type="category" dataKey="name" width={yAxisWidth} tick={{ fontSize: 11 }} />
+        <Tooltip
+          formatter={(v: number) => formatTooltipCurrency(v)}
+          labelFormatter={(label) => (tooltipLabel ? `${tooltipLabel}: ${label}` : label)}
+        />
+        <Bar dataKey="value" fill={multiColor ? undefined : color} radius={[0, 4, 4, 0]}>
+          {multiColor
+            ? sorted.map((entry, i) => (
+                <Cell key={entry.name} fill={colors[i % colors.length]} />
+              ))
+            : null}
+        </Bar>
       </BarChart>
     </ResponsiveContainer>
   )
@@ -167,11 +196,23 @@ export default function DashboardCharts({
       </ChartCard>
 
       <ChartCard title="브랜드별 매출 TOP">
-        <HorizontalBarChart data={topBrands} color="#8b5cf6" />
+        <HorizontalBarChart
+          data={topBrands}
+          multiColor
+          colors={BRAND_CHART_COLORS}
+          yAxisWidth={80}
+          tooltipLabel="브랜드"
+        />
       </ChartCard>
 
       <ChartCard title="지역별 매출 TOP">
-        <HorizontalBarChart data={topRegions} color="#14b8a6" />
+        <HorizontalBarChart
+          data={topRegions}
+          multiColor
+          colors={CHART_COLORS}
+          yAxisWidth={56}
+          tooltipLabel="지역"
+        />
       </ChartCard>
     </div>
   )

@@ -5,6 +5,7 @@ import {
   toString,
 } from './columnMapper'
 import { parseAllUploadedFiles, type DataRow, type ParsedDataset } from './fileParser'
+import { normalizeCell } from './csvUtils'
 import type { UploadedFile } from '../types'
 
 export interface OrderLineItem {
@@ -47,10 +48,18 @@ export interface ProductRecord {
   unitCost: number
 }
 
+export interface CustomerRecord {
+  customerId: string
+  customerName: string
+  grade: string
+  region: string
+}
+
 export interface ErpJoinedData {
   lineItems: OrderLineItem[]
   orderHeaders: OrderHeader[]
   products: ProductRecord[]
+  customers: CustomerRecord[]
   totalCustomers: number
   isSample: boolean
 }
@@ -103,12 +112,12 @@ function parseOrderHeaders(rows: DataRow[]): OrderHeader[] {
     const date = parseDate(row[dateCol])
     if (!date) continue
     headers.push({
-      orderNo: toString(row[orderNoCol]),
+      orderNo: normalizeCell(row[orderNoCol]),
       date,
       status: statusCol ? toString(row[statusCol]) : '완료',
       channel: channelCol ? toString(row[channelCol]) : '미분류',
       payment: paymentCol ? toString(row[paymentCol]) : '미분류',
-      customerId: customerCol ? toString(row[customerCol]) : 'UNKNOWN',
+      customerId: customerCol ? normalizeCell(row[customerCol]) : 'UNKNOWN',
       totalAmount: toNumber(row[amountCol]),
     })
   }
@@ -127,7 +136,7 @@ function parseProducts(rows: DataRow[]): ProductRecord[] {
   const safetyCol = findColumn(columns, [...COLUMN_ALIASES.safetyStock])
 
   return rows.map((row) => ({
-    productId: toString(row[productIdCol]),
+    productId: normalizeCell(row[productIdCol]),
     productName: productNameCol ? toString(row[productNameCol]) : toString(row[productIdCol]),
     category: categoryCol ? toString(row[categoryCol]) : '미분류',
     brand: brandCol ? toString(row[brandCol]) : '미분류',
@@ -138,25 +147,43 @@ function parseProducts(rows: DataRow[]): ProductRecord[] {
   }))
 }
 
-interface CustomerInfo {
+interface CustomerRecordInternal {
   customerId: string
   customerName: string
   grade: string
   region: string
 }
 
-function parseCustomers(rows: DataRow[]): CustomerInfo[] {
+function buildCustomerMap(customers: CustomerRecordInternal[]): Map<string, CustomerRecordInternal> {
+  const map = new Map<string, CustomerRecordInternal>()
+  for (const customer of customers) {
+    map.set(customer.customerId, customer)
+    map.set(normalizeCell(customer.customerId), customer)
+  }
+  return map
+}
+
+function lookupCustomer(
+  map: Map<string, CustomerRecordInternal>,
+  customerId: string,
+): CustomerRecordInternal | undefined {
+  return map.get(customerId) ?? map.get(normalizeCell(customerId))
+}
+
+function parseCustomers(rows: DataRow[]): CustomerRecordInternal[] {
   const columns = Object.keys(rows[0])
   const idCol = findColumn(columns, [...COLUMN_ALIASES.customerId])!
-  const nameCol = findColumn(columns, [...COLUMN_ALIASES.customerName])
+  const nameCol =
+    columns.find((c) => normalizeCell(c) === 'customer_name') ??
+    findColumn(columns, ['customer_name', ...COLUMN_ALIASES.customerName])
   const gradeCol = findColumn(columns, [...COLUMN_ALIASES.grade])
   const regionCol = findColumn(columns, [...COLUMN_ALIASES.region])
 
   return rows.map((row) => ({
-    customerId: toString(row[idCol]),
-    customerName: nameCol ? toString(row[nameCol]) : toString(row[idCol]),
-    grade: gradeCol ? toString(row[gradeCol]) : '미분류',
-    region: regionCol ? toString(row[regionCol]) : '미분류',
+    customerId: normalizeCell(row[idCol]),
+    customerName: nameCol ? normalizeCell(row[nameCol]) : normalizeCell(row[idCol]),
+    grade: gradeCol ? normalizeCell(row[gradeCol]) : '미분류',
+    region: regionCol ? normalizeCell(row[regionCol]) : '미분류',
   }))
 }
 
@@ -177,8 +204,8 @@ function parseOrderItems(rows: DataRow[]): OrderItemRow[] {
 
   return rows
     .map((row) => ({
-      orderNo: toString(row[orderNoCol]),
-      productId: toString(row[productIdCol]),
+      orderNo: normalizeCell(row[orderNoCol]),
+      productId: normalizeCell(row[productIdCol]),
       qty: qtyCol ? toNumber(row[qtyCol]) : 1,
       amount: toNumber(row[amountCol]),
     }))
@@ -235,11 +262,11 @@ function joinErpTables(
   orderHeaders: OrderHeader[],
   orderItems: OrderItemRow[],
   products: ProductRecord[],
-  customers: CustomerInfo[],
+  customers: CustomerRecordInternal[],
 ): OrderLineItem[] {
   const orderMap = new Map(orderHeaders.map((o) => [o.orderNo, o]))
   const productMap = new Map(products.map((p) => [p.productId, p]))
-  const customerMap = new Map(customers.map((c) => [c.customerId, c]))
+  const customerMap = buildCustomerMap(customers)
 
   const lineItems: OrderLineItem[] = []
 
@@ -248,7 +275,7 @@ function joinErpTables(
     if (!order) continue
 
     const product = productMap.get(item.productId)
-    const customer = customerMap.get(order.customerId)
+    const customer = lookupCustomer(customerMap, order.customerId)
     const unitCost = product?.unitCost ?? 0
 
     lineItems.push({
@@ -267,7 +294,7 @@ function joinErpTables(
       productId: item.productId,
       productName: product?.productName ?? item.productId,
       customerId: order.customerId,
-      customerName: customer?.customerName ?? order.customerId,
+      customerName: customer?.customerName ?? '미상',
     })
   }
 
@@ -278,7 +305,7 @@ function extractFromDatasets(datasets: ParsedDataset[]): ErpJoinedData {
   let orderHeaders: OrderHeader[] = []
   let orderItems: OrderItemRow[] = []
   let products: ProductRecord[] = []
-  let customers: CustomerInfo[] = []
+  let customers: CustomerRecordInternal[] = []
   let flatLineItems: OrderLineItem[] = []
 
   for (const { rows } of datasets) {
@@ -326,6 +353,7 @@ function extractFromDatasets(datasets: ParsedDataset[]): ErpJoinedData {
       lineItems,
       orderHeaders,
       products,
+      customers,
       totalCustomers: customers.length || new Set(orderHeaders.map((o) => o.customerId)).size,
       isSample: false,
     }
@@ -346,6 +374,7 @@ function extractFromDatasets(datasets: ParsedDataset[]): ErpJoinedData {
       lineItems: flatLineItems,
       orderHeaders: headers,
       products,
+      customers,
       totalCustomers: new Set(flatLineItems.map((i) => i.customerId)).size,
       isSample: false,
     }
@@ -355,6 +384,7 @@ function extractFromDatasets(datasets: ParsedDataset[]): ErpJoinedData {
     lineItems: [],
     orderHeaders: [],
     products,
+    customers,
     totalCustomers: customers.length,
     isSample: false,
   }
@@ -366,6 +396,7 @@ export async function joinErpData(uploadedFiles: UploadedFile[]): Promise<ErpJoi
       lineItems: [],
       orderHeaders: [],
       products: [],
+      customers: [],
       totalCustomers: 0,
       isSample: false,
     }

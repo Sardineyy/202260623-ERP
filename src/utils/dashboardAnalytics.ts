@@ -10,6 +10,7 @@ import type {
 } from '../types/dashboard'
 import {
   joinErpData,
+  type CustomerRecord,
   type OrderHeader,
   type OrderLineItem,
   type ProductRecord,
@@ -68,13 +69,30 @@ function statusForRate(rate: number, cautionThreshold: number): KpiStatus {
   return rate <= cautionThreshold ? 'normal' : 'caution'
 }
 
+function isNumericId(value: string): boolean {
+  return /^\d+$/.test(value.trim())
+}
+
+function resolveCustomerName(
+  customerId: string,
+  fallbackName: string,
+  customerNameById: Map<string, string>,
+): string {
+  const fromMaster = customerNameById.get(customerId) ?? customerNameById.get(customerId.trim())
+  if (fromMaster && !isNumericId(fromMaster)) return fromMaster
+  if (fallbackName && !isNumericId(fallbackName)) return fallbackName
+  return fromMaster ?? fallbackName
+}
+
 function buildDashboardFromData(
   lineItems: OrderLineItem[],
   orderHeaders: OrderHeader[],
   products: ProductRecord[],
+  customers: CustomerRecord[],
   totalCustomers: number,
   isSample: boolean,
 ): DashboardData {
+  const customerNameById = new Map(customers.map((c) => [c.customerId, c.customerName]))
   const validItems = lineItems.filter((i) => isValidStatus(i.status))
   const cancelledHeaders = orderHeaders.filter((o) => isCancelled(o.status))
   const returnedHeaders = orderHeaders.filter((o) => isReturned(o.status))
@@ -151,7 +169,15 @@ function buildDashboardFromData(
 
   const customerSales = new Map<string, { name: string; value: number }>()
   for (const item of validItems) {
-    const cur = customerSales.get(item.customerId) ?? { name: item.customerName, value: 0 }
+    const displayName = resolveCustomerName(
+      item.customerId,
+      item.customerName,
+      customerNameById,
+    )
+    const cur = customerSales.get(item.customerId) ?? { name: displayName, value: 0 }
+    if (isNumericId(cur.name) && !isNumericId(displayName)) {
+      cur.name = displayName
+    }
     cur.value += item.amount
     customerSales.set(item.customerId, cur)
   }
@@ -160,9 +186,9 @@ function buildDashboardFromData(
     .slice(0, 10)
     .map(([id, { name, value }], i) => ({
       rank: i + 1,
-      name: name || id,
+      name: resolveCustomerName(id, name, customerNameById),
       value,
-      subtext: id,
+      subtext: `고객코드 ${id}`,
     }))
 
   const statusMap = new Map<string, number>()
@@ -243,7 +269,9 @@ function buildDashboardFromData(
     salesByGrade: aggregateByKey(lineItems, 'grade'),
     orderStatusDistribution: [...statusMap.entries()].map(([name, value]) => ({ name, value })),
     topBrands: aggregateByKey(lineItems, 'brand').slice(0, 10),
-    topRegions: aggregateByKey(lineItems, 'region').slice(0, 10),
+    topRegions: aggregateByKey(lineItems, 'region')
+      .filter((item) => item.name !== '미분류')
+      .slice(0, 10),
     topProducts,
     topCustomers,
     inventoryRisk,
@@ -263,6 +291,7 @@ export async function buildDashboardData(
     joined.lineItems,
     joined.orderHeaders,
     joined.products,
+    joined.customers,
     joined.totalCustomers,
     joined.isSample,
   )

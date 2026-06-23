@@ -1,5 +1,6 @@
 .dashboard-page {
   max-width: 1280px;
+  margin: 0 auto;
 }
 
 .dashboard-page__header {

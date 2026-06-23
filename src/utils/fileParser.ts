@@ -1,5 +1,6 @@
 import Papa from 'papaparse'
 import * as XLSX from 'xlsx'
+import { normalizeCell, stripBom } from './csvUtils'
 
 export type DataRow = Record<string, unknown>
 
@@ -9,8 +10,14 @@ export interface ParsedDataset {
 }
 
 async function parseCsv(file: File): Promise<DataRow[]> {
-  const text = await file.text()
-  const result = Papa.parse<DataRow>(text, { header: true, skipEmptyLines: true })
+  const raw = await file.text()
+  const text = stripBom(raw)
+  const result = Papa.parse<DataRow>(text, {
+    header: true,
+    skipEmptyLines: true,
+    transformHeader: (header) => normalizeCell(header),
+    transform: (value) => (typeof value === 'string' ? value.trim() : value),
+  })
   return result.data
 }
 

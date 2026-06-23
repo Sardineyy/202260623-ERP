@@ -3,6 +3,7 @@ import { z } from 'zod'
 import type { ErpFileKey } from '../constants/erpFiles'
 import type { UploadedFile } from '../types'
 import { matchErpFileKey } from '../constants/erpFiles'
+import { normalizeCell, stripBom } from './csvUtils'
 
 export type ValidationStatus = 'idle' | 'validating' | 'valid' | 'error'
 
@@ -66,10 +67,13 @@ const REQUIRED_COLUMNS: Record<ErpFileKey, string[]> = {
 }
 
 async function parseCsvText(file: File): Promise<Record<string, unknown>[]> {
-  const text = await file.text()
+  const raw = await file.text()
+  const text = stripBom(raw)
   const result = Papa.parse<Record<string, unknown>>(text, {
     header: true,
     skipEmptyLines: true,
+    transformHeader: (header) => normalizeCell(header),
+    transform: (value) => (typeof value === 'string' ? value.trim() : value),
   })
   return result.data
 }
@@ -99,20 +103,20 @@ function checkReferentialIntegrity(
 
   if (orders.length === 0 || items.length === 0) return null
 
-  const customerIds = new Set(customers.map((r) => String(r.customer_id)))
-  const productIds = new Set(products.map((r) => String(r.product_id)))
-  const orderNos = new Set(orders.map((r) => String(r.order_no)))
+  const customerIds = new Set(customers.map((r) => normalizeCell(r.customer_id)))
+  const productIds = new Set(products.map((r) => normalizeCell(r.product_id)))
+  const orderNos = new Set(orders.map((r) => normalizeCell(r.order_no)))
 
+  let orphanCustomers = 0
   let orphanOrders = 0
   let orphanProducts = 0
-  let orphanCustomers = 0
 
-  for (const order of orders.slice(0, 200)) {
-    if (!customerIds.has(String(order.customer_id))) orphanCustomers++
+  for (const order of orders) {
+    if (!customerIds.has(normalizeCell(order.customer_id))) orphanCustomers++
   }
-  for (const item of items.slice(0, 200)) {
-    if (!orderNos.has(String(item.order_no))) orphanOrders++
-    if (!productIds.has(String(item.product_id))) orphanProducts++
+  for (const item of items) {
+    if (!orderNos.has(normalizeCell(item.order_no))) orphanOrders++
+    if (!productIds.has(normalizeCell(item.product_id))) orphanProducts++
   }
 
   const issues: string[] = []
@@ -121,6 +125,11 @@ function checkReferentialIntegrity(
   if (orphanProducts > 0) issues.push(`상품 참조 오류 ${orphanProducts}건`)
 
   return issues.length > 0 ? issues.join(', ') : null
+}
+
+export interface ValidationSummary {
+  results: FileValidationResult[]
+  integrityError: string | null
 }
 
 export async function validateErpFile(file: File, key: ErpFileKey): Promise<FileValidationResult> {
@@ -149,7 +158,7 @@ export async function validateErpFile(file: File, key: ErpFileKey): Promise<File
 
 export async function validateAllErpFiles(
   uploadedFiles: UploadedFile[],
-): Promise<FileValidationResult[]> {
+): Promise<ValidationSummary> {
   const keys: ErpFileKey[] = ['products', 'customers', 'orders', 'orderItems']
   const fileMap = new Map<ErpFileKey, File>()
   const parsedData: Partial<Record<ErpFileKey, Record<string, unknown>[]>> = {}
@@ -168,9 +177,8 @@ export async function validateAllErpFiles(
       continue
     }
 
-    results.push({ key, status: 'validating' })
     const result = await validateErpFile(file, key)
-    results[results.length - 1] = result
+    results.push(result)
 
     if (result.status === 'valid') {
       parsedData[key] = await parseCsvText(file)
@@ -178,14 +186,7 @@ export async function validateAllErpFiles(
   }
 
   const allValid = results.every((r) => r.status === 'valid')
-  if (allValid) {
-    const integrityError = checkReferentialIntegrity(parsedData)
-    if (integrityError) {
-      return results.map((r) =>
-        r.status === 'valid' ? { ...r, status: 'error' as const, message: integrityError } : r,
-      )
-    }
-  }
+  const integrityError = allValid ? checkReferentialIntegrity(parsedData) : null
 
-  return results
+  return { results, integrityError }
 }

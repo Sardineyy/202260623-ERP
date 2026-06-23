@@ -56,14 +56,25 @@ export default function FileStatusBar({ uploadedFiles }: FileStatusBarProps) {
   const [results, setResults] = useState<FileValidationResult[]>(
     ERP_FILES.map((f) => ({ key: f.key, status: 'idle' as ValidationStatus })),
   )
+  const [integrityError, setIntegrityError] = useState<string | null>(null)
+  const [isValidating, setIsValidating] = useState(false)
 
   const runValidation = useCallback(async () => {
     if (uploadedFiles.length === 0) {
       setResults(ERP_FILES.map((f) => ({ key: f.key, status: 'idle' as ValidationStatus })))
+      setIntegrityError(null)
       return
     }
-    const validationResults = await validateAllErpFiles(uploadedFiles)
+
+    setIsValidating(true)
+    setResults(ERP_FILES.map((f) => ({ key: f.key, status: 'validating' as ValidationStatus })))
+
+    const { results: validationResults, integrityError: integrity } =
+      await validateAllErpFiles(uploadedFiles)
+
     setResults(validationResults)
+    setIntegrityError(integrity)
+    setIsValidating(false)
   }, [uploadedFiles])
 
   useEffect(() => {
@@ -75,28 +86,41 @@ export default function FileStatusBar({ uploadedFiles }: FileStatusBarProps) {
   )
 
   return (
-    <div className="file-status-bar">
-      {ERP_FILES.map((file) => {
-        const result = resultMap.get(file.key) ?? { key: file.key, status: 'idle' as ValidationStatus }
-        return (
-          <div
-            key={file.key}
-            className={`file-status file-status--${result.status}`}
-            title={result.message}
-          >
-            <div className="file-status__header">
-              <span className="file-status__label">{file.label}</span>
-              <span className={`file-status__icon file-status__icon--${result.status}`}>
-                <StatusIcon status={result.status} />
+    <div className="file-status-wrap">
+      <div className="file-status-bar">
+        {ERP_FILES.map((file) => {
+          const result =
+            resultMap.get(file.key) ?? { key: file.key, status: 'idle' as ValidationStatus }
+          const displayStatus = isValidating ? 'validating' : result.status
+
+          return (
+            <div
+              key={file.key}
+              className={`file-status file-status--${displayStatus}`}
+              title={result.message}
+            >
+              <div className="file-status__header">
+                <span className="file-status__label">{file.label}</span>
+                <span className={`file-status__icon file-status__icon--${displayStatus}`}>
+                  <StatusIcon status={displayStatus} />
+                </span>
+              </div>
+              <span className="file-status__state">
+                {statusLabel(displayStatus, result.rowCount)}
               </span>
+              {result.message && displayStatus === 'error' && (
+                <span className="file-status__error">{result.message}</span>
+              )}
             </div>
-            <span className="file-status__state">{statusLabel(result.status, result.rowCount)}</span>
-            {result.message && result.status === 'error' && (
-              <span className="file-status__error">{result.message}</span>
-            )}
-          </div>
-        )
-      })}
+          )
+        })}
+      </div>
+
+      {integrityError && (
+        <div className="file-status-integrity" role="alert">
+          <strong>참조 무결성 오류:</strong> {integrityError}
+        </div>
+      )}
     </div>
   )
 }

@@ -11,7 +11,13 @@ export function findColumn(columns: string[], aliases: string[]): string | null 
   }
   for (const alias of aliases) {
     const target = normalizeKey(alias)
-    const partial = normalized.find((c) => c.norm.includes(target) || target.includes(c.norm))
+    if (target.length < 3) continue
+    const partial = normalized.find(
+      (c) =>
+        c.norm === target ||
+        c.norm.startsWith(target) ||
+        c.norm.endsWith(target),
+    )
     if (partial) return partial.original
   }
   return null
@@ -40,7 +46,7 @@ export const COLUMN_ALIASES = {
   payment: ['결제수단', 'payment', 'paymentmethod', '결제방법', 'payment_method'],
   category: ['카테고리', 'category', '품목군'],
   brand: ['브랜드', 'brand'],
-  region: ['지역', 'region', '권역', 'area', 'city'],
+  region: ['city', '지역', 'region', '권역'],
   grade: ['고객등급', '등급', 'grade', 'customerrade', 'customergrade', 'tier'],
   productId: ['상품코드', 'productid', 'product_id', '상품id', '품목코드'],
   productName: ['상품명', 'productname', 'product_name', '품목명'],

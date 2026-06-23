@@ -12,10 +12,17 @@
   margin: 0 auto;
   height: 100%;
   padding: 0 24px;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 16px;
+}
+
+.navbar__left {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 32px;
+  gap: 20px;
+  justify-self: start;
 }
 
 .navbar__brand {
@@ -43,6 +50,11 @@
   gap: 4px;
 }
 
+.navbar__tabs--center {
+  justify-self: center;
+  grid-column: 2;
+}
+
 .navbar__tab {
   padding: 8px 18px;
   font-size: 0.9rem;
@@ -51,6 +63,10 @@
   border-radius: 8px;
   transition: color 0.2s, background 0.2s;
   white-space: nowrap;
+}
+
+.navbar__tab--left {
+  padding: 8px 14px;
 }
 
 .navbar__tab:hover {
@@ -64,21 +80,26 @@
   font-weight: 600;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 900px) {
   .navbar__inner {
-    flex-direction: column;
-    justify-content: center;
+    grid-template-columns: 1fr;
+    justify-items: stretch;
     gap: 8px;
     padding: 8px 16px;
     height: auto;
     min-height: var(--nav-height);
   }
 
-  .navbar__tabs {
+  .navbar__left {
+    justify-content: space-between;
     width: 100%;
-    overflow-x: auto;
-    justify-content: flex-start;
-    padding-bottom: 4px;
+  }
+
+  .navbar__tabs--center {
+    grid-column: auto;
+    justify-self: center;
+    justify-content: center;
+    flex-wrap: wrap;
   }
 
   .navbar__tab {
