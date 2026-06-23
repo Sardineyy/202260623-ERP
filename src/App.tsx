@@ -3,12 +3,9 @@ import { useCallback, useState } from 'react'
 import Navbar from './components/Navbar'
 
 import DataInputPage from './pages/DataInputPage'
-
-import PlaceholderPage from './pages/PlaceholderPage'
-
 import DashboardPage from './pages/DashboardPage'
-
 import ReportPage from './pages/ReportPage'
+import RawDataPage from './pages/RawDataPage'
 
 import { fetchSampleDataFiles } from './services/sampleData'
 import { matchErpFileKey } from './constants/erpFiles'
@@ -131,28 +128,7 @@ function App() {
         return <ReportPage uploadedFiles={uploadedFiles} />
 
       case 'raw-data':
-
-        return (
-
-          <PlaceholderPage
-
-            title="원본 데이터"
-
-            description={
-
-              uploadedFiles.length > 0
-
-                ? `현재 ${uploadedFiles.length}개의 원본 파일이 업로드되어 있습니다.${uploadedFiles.some((f) => f.isSample) ? ' (샘플 데이터)' : ''}`
-
-                : '데이터 입력 탭에서 원본 소스를 업로드하거나 샘플 데이터를 불러오세요.'
-
-            }
-
-            icon="data"
-
-          />
-
-        )
+        return <RawDataPage uploadedFiles={uploadedFiles} />
 
     }
 
