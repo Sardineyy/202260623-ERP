@@ -7,3 +7,14 @@
 .app__main {
   flex: 1;
 }
+
+.app__error-banner {
+  max-width: 960px;
+  margin: 16px auto 0;
+  padding: 12px 24px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #dc2626;
+  font-size: 0.9rem;
+}

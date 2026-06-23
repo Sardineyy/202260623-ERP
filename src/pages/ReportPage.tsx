@@ -113,7 +113,8 @@ export default function ReportPage({ uploadedFiles }: ReportPageProps) {
           </div>
           <h2 className="report-page__empty-title">분석할 데이터가 없습니다</h2>
           <p className="report-page__empty-desc">
-            데이터 입력 탭에서 ERP 원본 소스를 업로드한 후 분석 보고서를 생성할 수 있습니다.
+            데이터 입력 탭에서 「샘플 데이터 불러오기」를 클릭하거나 ERP 원본 소스를 업로드한 후 분석 보고서를
+            생성할 수 있습니다.
           </p>
         </div>
       </div>

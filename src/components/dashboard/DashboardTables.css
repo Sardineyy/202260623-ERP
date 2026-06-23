@@ -1,0 +1,130 @@
+.ranking-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+.ranking-table-card,
+.inventory-risk-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  box-shadow: var(--shadow-sm);
+}
+
+.ranking-table-card__title,
+.inventory-risk-card__title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-bottom: 14px;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.dashboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.dashboard-table th,
+.dashboard-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+}
+
+.dashboard-table th {
+  font-weight: 600;
+  color: var(--color-text-muted);
+  background: var(--color-bg);
+  font-size: 0.8rem;
+}
+
+.dashboard-table__rank {
+  font-weight: 700;
+  color: var(--color-accent);
+  width: 48px;
+  text-align: center;
+}
+
+.dashboard-table__num {
+  text-align: right;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.dashboard-table__name {
+  font-weight: 500;
+}
+
+.dashboard-table__sub {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
+
+.dashboard-table__stock {
+  font-weight: 700;
+  color: #ea580c;
+}
+
+.dashboard-table__empty {
+  text-align: center;
+  color: var(--color-text-muted);
+  padding: 24px !important;
+}
+
+.row--danger {
+  background: #fff7ed;
+}
+
+.status-pill {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+}
+
+.status-pill--caution {
+  background: #ffedd5;
+  color: #ea580c;
+  font-weight: 600;
+}
+
+.inventory-risk-card {
+  margin-top: 20px;
+}
+
+.inventory-risk-card__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.inventory-risk-card__count {
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: #ffedd5;
+  color: #ea580c;
+  padding: 2px 10px;
+  border-radius: 10px;
+}
+
+.inventory-risk-card__desc {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  margin-bottom: 14px;
+}
+
+@media (max-width: 900px) {
+  .ranking-grid {
+    grid-template-columns: 1fr;
+  }
+}

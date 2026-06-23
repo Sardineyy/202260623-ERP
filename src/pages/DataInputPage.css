@@ -1,21 +1,130 @@
-.page {
-  max-width: 960px;
+.data-input-page {
+  max-width: 900px;
   margin: 0 auto;
   padding: 32px 24px 48px;
 }
 
-.page__header {
+.data-input-page__header {
   margin-bottom: 28px;
 }
 
-.page__title {
-  font-size: 1.5rem;
+.data-input-page__title {
+  font-size: 1.625rem;
   font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: 10px;
+}
+
+.data-input-page__desc {
+  font-size: 0.95rem;
+  color: var(--color-text-muted);
+  line-height: 1.65;
+}
+
+.data-input-page__upload {
+  margin-bottom: 16px;
+}
+
+.data-input-page__status {
+  margin-bottom: 20px;
+}
+
+.sample-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 22px;
+  margin-bottom: 32px;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: var(--radius);
+}
+
+.sample-banner__text {
+  font-size: 0.9rem;
+  color: var(--color-text);
+  line-height: 1.6;
+}
+
+.sample-banner__btn {
+  padding: 10px 20px;
+  background: #111827;
+  color: white;
+  font-size: 0.88rem;
+  font-weight: 600;
+  border-radius: 8px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 0.2s, opacity 0.2s;
+}
+
+.sample-banner__btn:hover:not(:disabled) {
+  background: #1f2937;
+}
+
+.sample-banner__btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.workflow-section {
+  padding-top: 8px;
+}
+
+.workflow-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.workflow-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 22px 20px;
+  position: relative;
+}
+
+.workflow-card__step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  margin-bottom: 12px;
+}
+
+.workflow-card__title {
+  font-size: 0.95rem;
+  font-weight: 600;
   color: var(--color-text);
   margin-bottom: 8px;
 }
 
-.page__description {
-  font-size: 0.95rem;
+.workflow-card__desc {
+  font-size: 0.82rem;
   color: var(--color-text-muted);
+  line-height: 1.6;
+}
+
+@media (max-width: 768px) {
+  .sample-banner {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .sample-banner__btn {
+    text-align: center;
+  }
+
+  .workflow-grid {
+    grid-template-columns: 1fr;
+  }
 }

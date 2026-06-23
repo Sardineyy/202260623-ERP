@@ -4,6 +4,7 @@ export interface UploadedFile {
   id: string
   file: File
   uploadedAt: Date
+  isSample?: boolean
 }
 
 export interface NumericAggregate {

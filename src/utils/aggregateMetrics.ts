@@ -1,8 +1,6 @@
-import Papa from 'papaparse'
-import * as XLSX from 'xlsx'
 import type { ErpMetrics, FileMetrics, NumericAggregate, UploadedFile } from '../types'
-
-type Row = Record<string, unknown>
+import { joinErpData } from './erpDataJoin'
+import { parseUploadedFile } from './fileParser'
 
 function isNumeric(value: unknown): value is number {
   if (typeof value === 'number' && !Number.isNaN(value)) return true
@@ -29,7 +27,7 @@ function aggregateNumeric(values: number[]): NumericAggregate {
   }
 }
 
-function buildFileMetrics(fileName: string, rows: Row[]): FileMetrics {
+function buildFileMetrics(fileName: string, rows: Record<string, unknown>[]): FileMetrics {
   if (rows.length === 0) {
     return {
       fileName,
@@ -72,50 +70,6 @@ function buildFileMetrics(fileName: string, rows: Row[]): FileMetrics {
   }
 }
 
-async function parseCsv(file: File): Promise<Row[]> {
-  const text = await file.text()
-  const result = Papa.parse<Row>(text, { header: true, skipEmptyLines: true })
-  return result.data
-}
-
-async function parseJson(file: File): Promise<Row[]> {
-  const text = await file.text()
-  const parsed = JSON.parse(text) as unknown
-  if (Array.isArray(parsed)) return parsed as Row[]
-  if (parsed && typeof parsed === 'object') return [parsed as Row]
-  return []
-}
-
-async function parseExcel(file: File): Promise<Row[]> {
-  const buffer = await file.arrayBuffer()
-  const workbook = XLSX.read(buffer, { type: 'array' })
-  const sheetName = workbook.SheetNames[0]
-  if (!sheetName) return []
-  const sheet = workbook.Sheets[sheetName]
-  return XLSX.utils.sheet_to_json<Row>(sheet)
-}
-
-async function parseFile(file: File): Promise<Row[]> {
-  const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
-
-  switch (ext) {
-    case 'csv':
-    case 'txt':
-      return parseCsv(file)
-    case 'json':
-      return parseJson(file)
-    case 'xlsx':
-    case 'xls':
-      return parseExcel(file)
-    default:
-      try {
-        return await parseCsv(file)
-      } catch {
-        return []
-      }
-  }
-}
-
 function buildHighlights(files: FileMetrics[]): string[] {
   const highlights: string[] = []
 
@@ -136,12 +90,37 @@ function buildHighlights(files: FileMetrics[]): string[] {
   return highlights
 }
 
+function buildErpHighlights(
+  joined: Awaited<ReturnType<typeof joinErpData>>,
+  fileMetrics: FileMetrics[],
+): string[] {
+  const highlights = buildHighlights(fileMetrics)
+
+  if (joined.lineItems.length === 0) return highlights
+
+  const validItems = joined.lineItems.filter(
+    (i) => !['취소', '반품'].some((s) => i.status.includes(s)),
+  )
+  const netSales = validItems.reduce((s, i) => s + i.amount, 0)
+  const cogs = validItems.reduce((s, i) => s + i.cost, 0)
+
+  return [
+    `주문 ${joined.orderHeaders.length.toLocaleString('ko-KR')}건 · 상품 ${joined.products.length.toLocaleString('ko-KR')}개 · 고객 ${joined.totalCustomers.toLocaleString('ko-KR')}명`,
+    `유효매출 ₩${Math.round(netSales).toLocaleString('ko-KR')} · 매출원가 ₩${Math.round(cogs).toLocaleString('ko-KR')}`,
+    `매출총이익 ₩${Math.round(netSales - cogs).toLocaleString('ko-KR')} · 이익률 ${netSales > 0 ? (((netSales - cogs) / netSales) * 100).toFixed(1) : 0}%`,
+    ...highlights.slice(0, 5),
+  ]
+}
+
 export async function aggregateErpMetrics(uploadedFiles: UploadedFile[]): Promise<ErpMetrics> {
   const files: FileMetrics[] = []
+  const joined = await joinErpData(uploadedFiles)
 
   for (const { file } of uploadedFiles) {
-    const rows = await parseFile(file)
-    files.push(buildFileMetrics(file.name, rows))
+    const datasets = await parseUploadedFile(file)
+    for (const { source, rows } of datasets) {
+      files.push(buildFileMetrics(source, rows))
+    }
   }
 
   const totalRecords = files.reduce((sum, f) => sum + f.rowCount, 0)
@@ -150,6 +129,6 @@ export async function aggregateErpMetrics(uploadedFiles: UploadedFile[]): Promis
     generatedAt: new Date().toISOString(),
     totalRecords,
     files,
-    highlights: buildHighlights(files),
+    highlights: buildErpHighlights(joined, files),
   }
 }
